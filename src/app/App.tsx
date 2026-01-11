@@ -43,11 +43,13 @@ function App() {
   >([])
   const [warningsAcknowledged, setWarningsAcknowledged] = useState(false)
   const [consoleStatus, setConsoleStatus] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string }>>([])
   const [tourStep, setTourStep] = useState<number | null>(null)
   const [theme, setTheme] = useState(() => loadSettings().theme)
   const [aiProviderKey, setAiProviderKey] = useState<
     'none' | 'mock' | 'openai' | 'anthropic' | 'openrouter'
   >(() => loadSettings().aiProvider)
+  const [aiConsent, setAiConsent] = useState(() => loadSettings().aiConsent)
   const [autosaveStatus, setAutosaveStatus] = useState<string | null>(null)
   const [previewLoaded, setPreviewLoaded] = useState(false)
   const [aiMode, setAiMode] = useState<'generate' | 'explain' | null>(null)
@@ -57,7 +59,6 @@ function App() {
   )
   const [aiResponse, setAiResponse] = useState<AiResponse | null>(null)
   const [aiConsentOpen, setAiConsentOpen] = useState(false)
-  const [aiConsentAccepted, setAiConsentAccepted] = useState(false)
   const aiConfigured = aiProviderKey !== 'none'
   const openRouterApiKey = import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined
   const aiProvider =
@@ -139,6 +140,65 @@ function App() {
       ? consoleEntries
       : consoleEntries.filter((entry) => entry.level === consoleFilter)
 
+  const aiSanitizedCode = useMemo(() => {
+    if (!aiResponse?.code) {
+      return ''
+    }
+    let cleaned = aiResponse.code.trim()
+    const prefixPattern = /^\s*javascript\s*:?\s*(\r?\n)?/i
+    while (prefixPattern.test(cleaned)) {
+      cleaned = cleaned.replace(prefixPattern, '')
+    }
+    return cleaned.trim()
+  }, [aiResponse?.code])
+
+  const diffLines = useMemo(() => {
+    if (!aiResponse?.code) {
+      return null
+    }
+    const currentLines = sourceCode.split('\n')
+    const aiLines = aiSanitizedCode.split('\n')
+    const maxLines = Math.max(currentLines.length, aiLines.length)
+    const current = []
+    const ai = []
+    for (let i = 0; i < maxLines; i += 1) {
+      const currentLine = currentLines[i]
+      const aiLine = aiLines[i]
+      const isSame = currentLine === aiLine
+      current.push({
+        line: currentLine ?? '',
+        status: currentLine === undefined ? 'empty' : isSame ? 'same' : 'changed',
+        number: i + 1,
+      })
+      ai.push({
+        line: aiLine ?? '',
+        status: aiLine === undefined ? 'empty' : isSame ? 'same' : 'changed',
+        number: i + 1,
+      })
+    }
+    return { current, ai }
+  }, [aiResponse?.code, aiSanitizedCode, sourceCode])
+
+  const diffStats = useMemo(() => {
+    if (!aiResponse?.code) {
+      return null
+    }
+    const currentLines = sourceCode.split('\n')
+    const aiLines = aiSanitizedCode.split('\n')
+    const maxLines = Math.max(currentLines.length, aiLines.length)
+    let changed = 0
+    for (let i = 0; i < maxLines; i += 1) {
+      if ((currentLines[i] ?? '') !== (aiLines[i] ?? '')) {
+        changed += 1
+      }
+    }
+    return {
+      current: currentLines.length,
+      ai: aiLines.length,
+      changed,
+    }
+  }, [aiResponse?.code, aiSanitizedCode, sourceCode])
+
   const normalizeTags = (value: string) =>
     value
       .split(',')
@@ -173,8 +233,18 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    saveSettings({ theme, aiProvider: aiProviderKey })
-  }, [theme, aiProviderKey])
+    saveSettings({ theme, aiProvider: aiProviderKey, aiConsent })
+  }, [theme, aiProviderKey, aiConsent])
+
+  useEffect(() => {
+    if (toasts.length === 0) {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      setToasts((current) => current.slice(1))
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [toasts])
 
   useEffect(() => {
     setPreviewLoaded(false)
@@ -303,10 +373,18 @@ function App() {
     if (selectedId) {
       updateBookmarklet(record)
       setCopyStatus('Updated')
+      setToasts((current) => [
+        ...current,
+        { id: crypto.randomUUID(), message: 'Bookmarklet updated' },
+      ])
     } else {
       addBookmarklet(record)
       setCopyStatus('Saved')
       setSelectedId(id)
+      setToasts((current) => [
+        ...current,
+        { id: crypto.randomUUID(), message: 'Bookmarklet saved' },
+      ])
     }
     setAutosaveStatus(null)
   }
@@ -319,10 +397,32 @@ function App() {
     try {
       await navigator.clipboard.writeText(generatedCode)
       setCopyStatus('Copied')
+      setToasts((current) => [
+        ...current,
+        { id: crypto.randomUUID(), message: 'Copied to clipboard' },
+      ])
     } catch {
       setCopyStatus('Copy failed')
     }
   }
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) {
+        return
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        void handleGenerate()
+      }
+      if (event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        handleSave()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleGenerate, handleSave])
 
   const handleConsoleMessage = (entry: { level: string; message: string }) => {
     setConsoleEntries((current) => {
@@ -406,7 +506,9 @@ function App() {
       setAiResponse({ blocked: true, blockReason: 'Provider not wired yet.' })
       return
     }
-    if (aiProviderKey !== 'mock' && !aiConsentAccepted) {
+    const needsConsent =
+      aiProviderKey === 'openrouter' && !aiConsent.openrouter && aiProviderReady
+    if (needsConsent) {
       setAiConsentOpen(true)
       return
     }
@@ -437,7 +539,9 @@ function App() {
       setAiResponse({ blocked: true, blockReason: 'Provider not wired yet.' })
       return
     }
-    if (aiProviderKey !== 'mock' && !aiConsentAccepted) {
+    const needsConsent =
+      aiProviderKey === 'openrouter' && !aiConsent.openrouter && aiProviderReady
+    if (needsConsent) {
       setAiConsentOpen(true)
       return
     }
@@ -461,7 +565,7 @@ function App() {
     if (!aiResponse?.code) {
       return
     }
-    setSourceCode(aiResponse.code)
+    setSourceCode(aiSanitizedCode)
     setAiMode(null)
     setAiStatus('idle')
     setAiResponse(null)
@@ -469,12 +573,13 @@ function App() {
   }
 
   const handleAiConsentAccept = () => {
-    setAiConsentAccepted(true)
+    if (aiProviderKey === 'openrouter') {
+      setAiConsent((current) => ({ ...current, openrouter: true }))
+    }
     setAiConsentOpen(false)
   }
 
   const handleAiConsentDecline = () => {
-    setAiConsentAccepted(false)
     setAiConsentOpen(false)
   }
 
@@ -527,6 +632,10 @@ function App() {
     setSelectedId(null)
     setAutosaveStatus(null)
     setCopyStatus('Library reset')
+    setToasts((current) => [
+      ...current,
+      { id: crypto.randomUUID(), message: 'Library reset to demo data' },
+    ])
   }
 
   return (
@@ -641,6 +750,17 @@ function App() {
                         </p>
                       </div>
                     ) : null}
+                    {aiProviderKey === 'openrouter' && aiConsent.openrouter ? (
+                      <button
+                        type="button"
+                        className="ai-revoke"
+                        onClick={() =>
+                          setAiConsent((current) => ({ ...current, openrouter: false }))
+                        }
+                      >
+                        Revoke consent
+                      </button>
+                    ) : null}
                     {!aiProviderReady ? (
                       <p className="ai-warning">
                         {aiProviderKey === 'openrouter'
@@ -663,6 +783,7 @@ function App() {
                         <div className="ai-form-actions">
                           <button
                             type="button"
+                            className="primary"
                             onClick={handleAiGenerate}
                             disabled={aiStatus === 'loading' || !aiProviderReady}
                           >
@@ -675,14 +796,59 @@ function App() {
                         {aiResponse?.code ? (
                           <div className="ai-result">
                             <label>Generated code</label>
-                            <textarea readOnly value={aiResponse.code} />
+                            <textarea readOnly value={aiSanitizedCode} />
                             {aiResponse.warnings?.length ? (
                               <p className="ai-warning">
                                 Warnings: {aiResponse.warnings.join(', ')}
                               </p>
                             ) : null}
-                            <button type="button" onClick={handleAiInsert}>
-                              Insert into editor
+                            {diffStats ? (
+                              <div className="ai-diff">
+                                <span>Lines (current): {diffStats.current}</span>
+                                <span>Lines (AI): {diffStats.ai}</span>
+                                <span>Lines changed: {diffStats.changed}</span>
+                              </div>
+                            ) : null}
+                            {diffLines ? (
+                              <div className="ai-compare">
+                                <div className="ai-compare-grid">
+                                  <div className="ai-compare-panel">
+                                    <label>Current code</label>
+                                    <pre className="ai-code">
+                                      {diffLines.current.map((entry) => (
+                                        <div
+                                          key={`current-${entry.number}`}
+                                          className={`ai-line ${entry.status}`}
+                                        >
+                                          <span className="ai-line-number">
+                                            {entry.number}
+                                          </span>
+                                          <span className="ai-line-text">{entry.line}</span>
+                                        </div>
+                                      ))}
+                                    </pre>
+                                  </div>
+                                  <div className="ai-compare-panel">
+                                    <label>AI code</label>
+                                    <pre className="ai-code">
+                                      {diffLines.ai.map((entry) => (
+                                        <div
+                                          key={`ai-${entry.number}`}
+                                          className={`ai-line ${entry.status}`}
+                                        >
+                                          <span className="ai-line-number">
+                                            {entry.number}
+                                          </span>
+                                          <span className="ai-line-text">{entry.line}</span>
+                                        </div>
+                                      ))}
+                                    </pre>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null}
+                            <button type="button" className="primary" onClick={handleAiInsert}>
+                              Apply to editor
                             </button>
                           </div>
                         ) : null}
@@ -693,6 +859,7 @@ function App() {
                         <div className="ai-form-actions">
                           <button
                             type="button"
+                            className="primary"
                             onClick={handleAiExplain}
                             disabled={aiStatus === 'loading' || !aiProviderReady}
                           >
@@ -757,18 +924,44 @@ function App() {
                 >
                   {selectedId ? 'Update' : 'Save to library'}
                 </button>
-                <a
-                  className={`drag-link ${generatedCode ? '' : 'is-disabled'}`}
-                  href={generatedCode || '#'}
-                  draggable={Boolean(generatedCode)}
-                  onClick={(event) => {
-                    if (!generatedCode) {
+                <div className="drag-group">
+                  <a
+                    className={`drag-link ${generatedCode ? '' : 'is-disabled'}`}
+                    href={generatedCode || '#'}
+                    draggable={Boolean(generatedCode)}
+                    aria-disabled={!generatedCode}
+                    onClick={(event) => {
                       event.preventDefault()
-                    }
-                  }}
-                >
-                  Drag to bookmarks bar
-                </a>
+                      if (!generatedCode) {
+                        return
+                      }
+                      setToasts((current) => [
+                        ...current,
+                        {
+                          id: crypto.randomUUID(),
+                          message: 'Drag this bookmarklet into your bookmarks bar.',
+                        },
+                      ])
+                    }}
+                    onDragStart={(event) => {
+                      if (!generatedCode) {
+                        event.preventDefault()
+                        return
+                      }
+                      const label = draftName.trim() || 'Bookmarklet'
+                      event.dataTransfer.effectAllowed = 'copy'
+                      event.dataTransfer.setData('text/uri-list', generatedCode)
+                      event.dataTransfer.setData('text/plain', label)
+                      event.dataTransfer.setData(
+                        'text/html',
+                        `<a href="${generatedCode}">${label}</a>`,
+                      )
+                    }}
+                  >
+                    {draftName.trim() || 'Bookmarklet'}
+                  </a>
+                  <span className="drag-hint">Drag to bookmarks bar</span>
+                </div>
                 {copyStatus ? <span className="copy-status">{copyStatus}</span> : null}
               </div>
             </div>
@@ -1014,6 +1207,13 @@ function App() {
           </div>
         </div>
       ) : null}
+      <div className="toast-stack" aria-live="polite">
+        {toasts.map((toast) => (
+          <div key={toast.id} className="toast">
+            {toast.message}
+          </div>
+        ))}
+      </div>
     </AppLayout>
   )
 }

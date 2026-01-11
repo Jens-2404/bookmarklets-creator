@@ -41,6 +41,15 @@ function stripCodeFences(text: string) {
   return text.replace(/```[a-z]*\\n?/gi, '').replace(/```/g, '').trim()
 }
 
+function normalizeGeneratedCode(text: string) {
+  let cleaned = text.trim()
+  const prefixPattern = /^\\s*javascript\\s*:?[\\t ]*(\\r?\\n)?/i
+  while (prefixPattern.test(cleaned)) {
+    cleaned = cleaned.replace(prefixPattern, '')
+  }
+  return cleaned.trim()
+}
+
 function toBulletLines(text: string) {
   return text
     .split('\n')
@@ -84,7 +93,7 @@ export function createOpenRouterProvider(apiKey: string): AiProvider {
     async generate(request: AiRequest): Promise<AiResponse> {
       if (request.intent === 'generate') {
         const content = await callOpenRouter(apiKey, buildGenerateMessages(request.prompt))
-        const candidate = stripCodeFences(content)
+        const candidate = normalizeGeneratedCode(stripCodeFences(content))
         return applyGuardrails(candidate, request.options?.maxChars)
       }
 

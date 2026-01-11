@@ -1,11 +1,17 @@
 export type AppSettings = {
   theme: 'light' | 'dark'
   aiProvider: 'none' | 'mock' | 'openai' | 'anthropic' | 'openrouter'
+  aiConsent: {
+    openrouter?: boolean
+    openai?: boolean
+    anthropic?: boolean
+  }
 }
 
 export const defaultSettings: AppSettings = {
   theme: 'light',
   aiProvider: 'none',
+  aiConsent: {},
 }
 
 const SETTINGS_KEY = 'bookmarklets_creator_settings'
