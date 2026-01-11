@@ -1,0 +1,64 @@
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.editor-toolbar button {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editor-toolbar .primary {
+  background: var(--accent);
+  color: white;
+}
+
+.editor-toolbar .ghost {
+  background: transparent;
+  border-color: var(--panel-border);
+  color: var(--ink);
+}
+
+.toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.warning-pill,
+.ok-pill,
+.error-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.warning-pill {
+  background: rgba(217, 119, 6, 0.18);
+  color: #b45309;
+}
+
+.ok-pill {
+  background: rgba(12, 107, 98, 0.16);
+  color: var(--accent);
+}
+
+.error-pill {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
