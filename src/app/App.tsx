@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { editor as MonacoEditor } from 'monaco-editor'
-import './App.css'
+import './App.scss'
 import { CodeEditor } from '../editor/CodeEditor'
 import { EditorToolbar } from '../editor/EditorToolbar'
 import { generateBookmarklet } from '../generator/bookmarklet.generator'
@@ -9,7 +9,13 @@ import { BookmarkletList } from '../manager/BookmarkletList'
 import { useBookmarklets } from '../manager/bookmarklet.store'
 import { buildPreviewDocument } from '../preview/preview.controller'
 import { SandboxIframe } from '../preview/SandboxIframe'
+import { loadSettings, saveSettings } from '../storage/settings'
 import { AppLayout } from './layout/AppLayout'
+import { mockProvider } from '../ai/mock.provider'
+import type { AiResponse } from '../ai/ai.types'
+import { createOpenAiProvider } from '../ai/providers/openai'
+import { createAnthropicProvider } from '../ai/providers/anthropic'
+import { createOpenRouterProvider } from '../ai/providers/openrouter'
 
 const starterCode = `(() => {
   const selection = window.getSelection()?.toString()
@@ -21,7 +27,7 @@ const starterCode = `(() => {
 })()`
 
 function App() {
-  const { items, addBookmarklet, updateBookmarklet, removeBookmarklet } =
+  const { items, addBookmarklet, updateBookmarklet, removeBookmarklet, resetLibrary } =
     useBookmarklets()
   const [sourceCode, setSourceCode] = useState(starterCode)
   const [generatedCode, setGeneratedCode] = useState('')
@@ -38,6 +44,31 @@ function App() {
   const [warningsAcknowledged, setWarningsAcknowledged] = useState(false)
   const [consoleStatus, setConsoleStatus] = useState<string | null>(null)
   const [tourStep, setTourStep] = useState<number | null>(null)
+  const [theme, setTheme] = useState(() => loadSettings().theme)
+  const [aiProviderKey, setAiProviderKey] = useState<
+    'none' | 'mock' | 'openai' | 'anthropic' | 'openrouter'
+  >(() => loadSettings().aiProvider)
+  const [autosaveStatus, setAutosaveStatus] = useState<string | null>(null)
+  const [previewLoaded, setPreviewLoaded] = useState(false)
+  const [aiMode, setAiMode] = useState<'generate' | 'explain' | null>(null)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'done' | 'error'>(
+    'idle',
+  )
+  const [aiResponse, setAiResponse] = useState<AiResponse | null>(null)
+  const [aiConsentOpen, setAiConsentOpen] = useState(false)
+  const [aiConsentAccepted, setAiConsentAccepted] = useState(false)
+  const aiConfigured = aiProviderKey !== 'none'
+  const openRouterApiKey = import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined
+  const aiProvider =
+    aiProviderKey === 'mock'
+      ? mockProvider
+      : aiProviderKey === 'openrouter' && openRouterApiKey
+      ? createOpenRouterProvider(openRouterApiKey)
+      : null
+  const aiProviderReady =
+    aiProviderKey === 'mock' ||
+    (aiProviderKey === 'openrouter' && Boolean(openRouterApiKey))
   const [consoleFilter, setConsoleFilter] = useState<
     'all' | 'log' | 'info' | 'warn' | 'error'
   >('all')
@@ -139,6 +170,59 @@ function App() {
       normalizeTags(draftTags) !== normalizeTagsArray(selectedItem.tags)
     )
   }, [selectedItem, sourceCode, generatedCode, draftName, draftTags])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    saveSettings({ theme, aiProvider: aiProviderKey })
+  }, [theme, aiProviderKey])
+
+  useEffect(() => {
+    setPreviewLoaded(false)
+  }, [sourceCode])
+  useEffect(() => {
+    if (!selectedId) {
+      setAutosaveStatus(null)
+      return
+    }
+    if (!isDirty || errorIssues.length > 0 || !generatedCode) {
+      return
+    }
+    if (warningIssues.length > 0 && !warningsAcknowledged) {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      const now = Date.now()
+      const tags = draftTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+      const record = {
+        id: selectedId,
+        name: draftName.trim() || 'Untitled Bookmarklet',
+        description: '',
+        tags,
+        sourceCode,
+        generatedCode,
+        createdAt: selectedItem?.createdAt ?? now,
+        updatedAt: now,
+      }
+      updateBookmarklet(record)
+      setAutosaveStatus('Auto-saved')
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [
+    selectedId,
+    isDirty,
+    errorIssues.length,
+    warningIssues.length,
+    warningsAcknowledged,
+    generatedCode,
+    sourceCode,
+    draftName,
+    draftTags,
+    selectedItem,
+    updateBookmarklet,
+  ])
   const filteredBookmarklets = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     const tag = tagFilter.trim().toLowerCase()
@@ -185,6 +269,7 @@ function App() {
     setDraftName('Untitled Bookmarklet')
     setDraftTags('dom, utility')
     setSelectedId(null)
+    setAutosaveStatus(null)
   }
 
   const handleSave = () => {
@@ -223,6 +308,7 @@ function App() {
       setCopyStatus('Saved')
       setSelectedId(id)
     }
+    setAutosaveStatus(null)
   }
 
   const handleCopy = async () => {
@@ -307,6 +393,91 @@ function App() {
   }
   const handleStopTour = () => setTourStep(null)
 
+  const handleAiClose = () => {
+    setAiMode(null)
+    setAiStatus('idle')
+    setAiResponse(null)
+    setAiPrompt('')
+  }
+
+  const handleAiGenerate = async () => {
+    if (!aiProvider) {
+      setAiStatus('error')
+      setAiResponse({ blocked: true, blockReason: 'Provider not wired yet.' })
+      return
+    }
+    if (aiProviderKey !== 'mock' && !aiConsentAccepted) {
+      setAiConsentOpen(true)
+      return
+    }
+    if (!aiPrompt.trim()) {
+      setAiStatus('error')
+      setAiResponse({ blocked: true, blockReason: 'Describe what you want to build.' })
+      return
+    }
+    setAiStatus('loading')
+    try {
+      const response = await aiProvider.generate({
+        intent: 'generate',
+        prompt: aiPrompt,
+        options: { maxChars: 4000 },
+      })
+      setAiResponse(response)
+      setAiStatus('done')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'AI request failed.'
+      setAiStatus('error')
+      setAiResponse({ blocked: true, blockReason: message })
+    }
+  }
+
+  const handleAiExplain = async () => {
+    if (!aiProvider) {
+      setAiStatus('error')
+      setAiResponse({ blocked: true, blockReason: 'Provider not wired yet.' })
+      return
+    }
+    if (aiProviderKey !== 'mock' && !aiConsentAccepted) {
+      setAiConsentOpen(true)
+      return
+    }
+    setAiStatus('loading')
+    try {
+      const response = await aiProvider.generate({
+        intent: 'explain',
+        prompt: '',
+        sourceCode,
+      })
+      setAiResponse(response)
+      setAiStatus('done')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'AI request failed.'
+      setAiStatus('error')
+      setAiResponse({ blocked: true, blockReason: message })
+    }
+  }
+
+  const handleAiInsert = () => {
+    if (!aiResponse?.code) {
+      return
+    }
+    setSourceCode(aiResponse.code)
+    setAiMode(null)
+    setAiStatus('idle')
+    setAiResponse(null)
+    setAiPrompt('')
+  }
+
+  const handleAiConsentAccept = () => {
+    setAiConsentAccepted(true)
+    setAiConsentOpen(false)
+  }
+
+  const handleAiConsentDecline = () => {
+    setAiConsentAccepted(false)
+    setAiConsentOpen(false)
+  }
+
   const handleJumpToWarning = () => {
     const firstIssue = issues[0]
     const editor = editorRef.current
@@ -345,15 +516,37 @@ function App() {
     setSourceCode(bookmarklet.sourceCode)
     setGeneratedCode(bookmarklet.generatedCode)
     setCopyStatus(null)
+    setAutosaveStatus(null)
+  }
+
+  const handleResetLibrary = async () => {
+    if (!window.confirm('Reset the library to demo data? This will remove saved items.')) {
+      return
+    }
+    await resetLibrary()
+    setSelectedId(null)
+    setAutosaveStatus(null)
+    setCopyStatus('Library reset')
   }
 
   return (
     <AppLayout
       action={
         tourStep === null ? (
-          <button type="button" className="tour-button" onClick={handleStartTour}>
-            Start tour
-          </button>
+          <>
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={() =>
+                setTheme((current) => (current === 'light' ? 'dark' : 'light'))
+              }
+            >
+              {theme === 'light' ? 'Dark mode' : 'Light mode'}
+            </button>
+            <button type="button" className="tour-button" onClick={handleStartTour}>
+              Start tour
+            </button>
+          </>
         ) : null
       }
     >
@@ -372,11 +565,156 @@ function App() {
               onGenerate={handleGenerate}
               onReset={handleReset}
               onJumpToIssue={handleJumpToWarning}
+              onAiGenerate={() => setAiMode('generate')}
+              onAiExplain={() => setAiMode('explain')}
               warningsCount={warningIssues.length}
               errorsCount={errorIssues.length}
               hasGenerated={generatedCode.length > 0}
               disableGenerate={errorIssues.length > 0}
             />
+            {aiMode ? (
+              <div className="ai-panel">
+                <div className="ai-header">
+                  <div>
+                    <p className="ai-eyebrow">AI Assist</p>
+                    <h3>{aiMode === 'generate' ? 'Create with AI' : 'Explain code'}</h3>
+                  </div>
+                  <button type="button" className="ai-close" onClick={handleAiClose}>
+                    Close
+                  </button>
+                </div>
+                {!aiConfigured ? (
+                  <div className="ai-empty">
+                    <p>AI is not configured yet. Connect a provider to enable this feature.</p>
+                    <label htmlFor="ai-provider">Provider</label>
+                    <select
+                      id="ai-provider"
+                      value={aiProviderKey}
+                      onChange={(event) =>
+                        setAiProviderKey(
+                          event.target.value as
+                            | 'none'
+                            | 'mock'
+                            | 'openai'
+                            | 'anthropic'
+                            | 'openrouter',
+                        )
+                      }
+                    >
+                      <option value="none">Not configured</option>
+                      <option value="mock">Mock (local)</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic</option>
+                      <option value="openrouter">OpenRouter</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="ai-form">
+                    <div className="ai-provider">
+                      <label htmlFor="ai-provider">Provider</label>
+                      <select
+                        id="ai-provider"
+                        value={aiProviderKey}
+                      onChange={(event) =>
+                        setAiProviderKey(
+                          event.target.value as
+                            | 'none'
+                            | 'mock'
+                            | 'openai'
+                            | 'anthropic'
+                            | 'openrouter',
+                        )
+                      }
+                      >
+                        <option value="mock">Mock (local)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="none">Disable AI</option>
+                      </select>
+                    </div>
+                    {aiProviderKey === 'openrouter' ? (
+                      <div className="ai-key">
+                        <label>API key source</label>
+                        <p>
+                          Uses <code>VITE_OPENROUTER_API_KEY</code> from <code>.env.local</code>.
+                        </p>
+                      </div>
+                    ) : null}
+                    {!aiProviderReady ? (
+                      <p className="ai-warning">
+                        {aiProviderKey === 'openrouter'
+                          ? 'Add VITE_OPENROUTER_API_KEY to enable OpenRouter.'
+                          : 'This provider is not wired yet. Select Mock (local) to try the flow.'}
+                      </p>
+                    ) : null}
+                    {aiMode === 'generate' ? (
+                      <>
+                        <label htmlFor="ai-prompt">Describe the bookmarklet</label>
+                        <textarea
+                          id="ai-prompt"
+                          value={aiPrompt}
+                          onChange={(event) => setAiPrompt(event.target.value)}
+                          placeholder="e.g., Highlight all external links in red"
+                        />
+                        {aiResponse?.blocked ? (
+                          <p className="ai-error">{aiResponse.blockReason}</p>
+                        ) : null}
+                        <div className="ai-form-actions">
+                          <button
+                            type="button"
+                            onClick={handleAiGenerate}
+                            disabled={aiStatus === 'loading' || !aiProviderReady}
+                          >
+                            {aiStatus === 'loading' ? 'Generating...' : 'Generate'}
+                          </button>
+                          <button type="button" className="ghost" onClick={handleAiClose}>
+                            Cancel
+                          </button>
+                        </div>
+                        {aiResponse?.code ? (
+                          <div className="ai-result">
+                            <label>Generated code</label>
+                            <textarea readOnly value={aiResponse.code} />
+                            {aiResponse.warnings?.length ? (
+                              <p className="ai-warning">
+                                Warnings: {aiResponse.warnings.join(', ')}
+                              </p>
+                            ) : null}
+                            <button type="button" onClick={handleAiInsert}>
+                              Insert into editor
+                            </button>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <p>Explain mode will summarize and annotate the current editor code.</p>
+                        <div className="ai-form-actions">
+                          <button
+                            type="button"
+                            onClick={handleAiExplain}
+                            disabled={aiStatus === 'loading' || !aiProviderReady}
+                          >
+                            {aiStatus === 'loading' ? 'Explaining...' : 'Explain'}
+                          </button>
+                          <button type="button" className="ghost" onClick={handleAiClose}>
+                            Cancel
+                          </button>
+                        </div>
+                        {aiResponse?.explanation?.length ? (
+                          <ul className="ai-explain">
+                            {aiResponse.explanation.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
             <CodeEditor
               value={sourceCode}
               onChange={setSourceCode}
@@ -465,6 +803,7 @@ function App() {
             <div className="save-form">
               <p className="save-mode">
                 {selectedId ? 'Editing existing bookmarklet' : 'New bookmarklet'}
+                {autosaveStatus ? ` • ${autosaveStatus}` : ''}
               </p>
               <div>
                 <label htmlFor="bookmarklet-name">Name</label>
@@ -500,9 +839,15 @@ function App() {
             <span className="panel-meta">Sandbox iframe</span>
           </div>
           <div className="panel-body">
-            <SandboxIframe srcDoc={previewDoc} onMessage={handleConsoleMessage} />
+            <SandboxIframe
+              srcDoc={previewDoc}
+              onMessage={handleConsoleMessage}
+              onLoad={() => setPreviewLoaded(true)}
+            />
             <p className="panel-note">
-              Preview runs the current editor content in a sandboxed iframe.
+              {previewLoaded
+                ? 'Preview ready in sandboxed iframe.'
+                : 'Loading preview in sandboxed iframe...'}
             </p>
             <div className="console-controls">
               <div className="console-filters">
@@ -615,6 +960,9 @@ function App() {
             >
               Clear filters
             </button>
+            <button type="button" className="manager-reset" onClick={handleResetLibrary}>
+              Reset demo data
+            </button>
           </div>
           <BookmarkletList
             items={filteredBookmarklets}
@@ -642,6 +990,25 @@ function App() {
               </button>
               <button type="button" className="ghost" onClick={handleStopTour}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {aiConsentOpen ? (
+        <div className="ai-consent-overlay" role="dialog" aria-live="polite">
+          <div className="ai-consent-card">
+            <h3>AI Provider Consent</h3>
+            <p>
+              Using a remote AI provider sends your prompt and relevant code to
+              that service. Continue only if you agree.
+            </p>
+            <div className="ai-consent-actions">
+              <button type="button" onClick={handleAiConsentDecline}>
+                Cancel
+              </button>
+              <button type="button" className="primary" onClick={handleAiConsentAccept}>
+                I agree
               </button>
             </div>
           </div>

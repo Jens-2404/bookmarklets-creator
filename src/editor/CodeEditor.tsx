@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as monaco from 'monaco-editor'
 import 'monaco-editor/min/vs/editor/editor.main.css'
-import './CodeEditor.css'
+import './CodeEditor.scss'
 import type { ValidationIssue } from '../generator/validator'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'

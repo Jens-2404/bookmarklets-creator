@@ -1,5 +1,5 @@
 import type { Bookmarklet } from '../types/Bookmarklet'
-import './BookmarkletList.css'
+import './BookmarkletList.scss'
 
 type BookmarkletListProps = {
   items: Bookmarklet[]

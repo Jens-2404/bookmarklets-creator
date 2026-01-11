@@ -1,0 +1,39 @@
+@use './styles/tokens' as tokens;
+
+:root {
+  font-family: 'Segoe UI Variable Text', 'Aptos', 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @include tokens.theme-vars(tokens.$theme-light);
+}
+
+:root[data-theme='dark'] {
+  @include tokens.theme-vars(tokens.$theme-dark);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, var(--bg-1), transparent 55%),
+    radial-gradient(circle at 20% 20%, var(--bg-2), transparent 45%),
+    linear-gradient(130deg, var(--bg-3) 0%, var(--paper) 60%, var(--bg-3) 100%);
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}

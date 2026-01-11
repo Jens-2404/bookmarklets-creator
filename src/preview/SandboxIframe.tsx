@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react'
-import './SandboxIframe.css'
+import './SandboxIframe.scss'
 
 type SandboxIframeProps = {
   srcDoc: string
   onMessage?: (payload: { level: string; message: string }) => void
+  onLoad?: () => void
 }
 
-export function SandboxIframe({ srcDoc, onMessage }: SandboxIframeProps) {
+export function SandboxIframe({ srcDoc, onMessage, onLoad }: SandboxIframeProps) {
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   useEffect(() => {
     if (!onMessage) {
@@ -36,9 +37,10 @@ export function SandboxIframe({ srcDoc, onMessage }: SandboxIframeProps) {
     <iframe
       className="sandbox-frame"
       title="Bookmarklet preview"
-      sandbox="allow-scripts allow-modals"
+      sandbox="allow-scripts"
       srcDoc={srcDoc}
       ref={frameRef}
+      onLoad={onLoad}
     />
   )
 }

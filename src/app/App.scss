@@ -51,6 +51,268 @@
   color: var(--muted);
 }
 
+.ai-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ai-actions button {
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.ai-panel {
+  border-radius: 16px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-2);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.ai-consent-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 8, 6, 0.5);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.ai-consent-card {
+  width: min(420px, 100%);
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 20px 24px;
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 18px 40px rgba(18, 25, 22, 0.2);
+}
+
+.ai-consent-card h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+.ai-consent-card p {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.ai-consent-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.ai-consent-actions button {
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ai-consent-actions .primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: white;
+}
+
+.ai-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ai-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ai-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.ai-close {
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: transparent;
+  color: var(--button-text);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.ai-empty {
+  display: grid;
+  gap: 10px;
+  color: var(--ink-muted);
+}
+
+.ai-empty button {
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ai-empty label,
+.ai-provider label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ai-empty select,
+.ai-provider select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+.ai-provider {
+  margin-bottom: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.ai-key {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ai-key label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ai-key p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.ai-form label {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.ai-form textarea {
+  width: 100%;
+  min-height: 90px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+.ai-error {
+  margin: 8px 0 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.ai-result {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.ai-result label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ai-result textarea {
+  width: 100%;
+  min-height: 120px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  background: var(--surface-1);
+  color: var(--ink);
+}
+
+.ai-warning {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ai-explain {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+
+.ai-form-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.ai-form-actions button {
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ai-form-actions .ghost {
+  background: transparent;
+}
+
 .generated-output {
   margin-top: 16px;
   display: grid;
@@ -75,7 +337,7 @@
   font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
   font-size: 0.85rem;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--surface-1);
 }
 
 .export-actions {
@@ -88,12 +350,12 @@
 .export-actions button,
 .export-actions .drag-link {
   border-radius: 999px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--button-border);
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: white;
-  color: var(--ink);
+  background: var(--button-bg);
+  color: var(--button-text);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -144,19 +406,19 @@
   border: 1px solid var(--panel-border);
   padding: 10px 12px;
   font-size: 0.9rem;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--input-bg);
   color: var(--ink);
 }
 
 .new-draft {
   align-self: end;
   border-radius: 999px;
-  border: 1px solid var(--panel-border);
-  background: white;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
   padding: 10px 14px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--button-text);
   cursor: pointer;
 }
 
@@ -184,19 +446,31 @@
   border: 1px solid var(--panel-border);
   padding: 10px 12px;
   font-size: 0.9rem;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--input-bg);
   color: var(--ink);
 }
 
 .manager-clear {
   align-self: end;
   border-radius: 999px;
-  border: 1px solid var(--panel-border);
-  background: white;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
   padding: 10px 14px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--button-text);
+  cursor: pointer;
+}
+
+.manager-reset {
+  align-self: end;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.12);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #b91c1c;
   cursor: pointer;
 }
 
@@ -211,7 +485,7 @@
   gap: 6px;
   max-height: 180px;
   overflow: auto;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface-3);
 }
 
 .console-controls {
@@ -237,9 +511,9 @@
 .console-clear,
 .console-actions button {
   border-radius: 999px;
-  border: 1px solid var(--panel-border);
-  background: white;
-  color: var(--ink);
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
   font-size: 0.75rem;
   padding: 6px 12px;
   text-transform: uppercase;
@@ -340,12 +614,23 @@
 
 .tour-button {
   border-radius: 999px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--button-border);
   padding: 10px 16px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: white;
-  color: var(--ink);
+  background: var(--button-bg);
+  color: var(--button-text);
+  cursor: pointer;
+}
+
+.theme-toggle {
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--button-bg);
+  color: var(--button-text);
   cursor: pointer;
 }
 
@@ -361,7 +646,7 @@
   position: absolute;
   max-width: 420px;
   width: min(420px, calc(100% - 32px));
-  background: white;
+  background: var(--panel);
   border-radius: 20px;
   padding: 20px 24px;
   box-shadow: 0 18px 40px rgba(18, 25, 22, 0.18);
@@ -396,8 +681,8 @@
 
 .tour-actions button {
   border-radius: 999px;
-  border: 1px solid var(--panel-border);
-  background: white;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 600;

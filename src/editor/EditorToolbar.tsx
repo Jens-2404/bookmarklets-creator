@@ -1,9 +1,11 @@
-import './EditorToolbar.css'
+import './EditorToolbar.scss'
 
 type EditorToolbarProps = {
   onGenerate: () => void
   onReset: () => void
   onJumpToIssue?: () => void
+  onAiGenerate?: () => void
+  onAiExplain?: () => void
   warningsCount: number
   errorsCount: number
   hasGenerated: boolean
@@ -14,6 +16,8 @@ export function EditorToolbar({
   onGenerate,
   onReset,
   onJumpToIssue,
+  onAiGenerate,
+  onAiExplain,
   warningsCount,
   errorsCount,
   hasGenerated,
@@ -37,6 +41,16 @@ export function EditorToolbar({
         {onJumpToIssue ? (
           <button type="button" className="ghost" onClick={onJumpToIssue}>
             Jump to issue
+          </button>
+        ) : null}
+        {onAiGenerate ? (
+          <button type="button" className="ghost" onClick={onAiGenerate}>
+            Create with AI
+          </button>
+        ) : null}
+        {onAiExplain ? (
+          <button type="button" className="ghost" onClick={onAiExplain}>
+            Explain code
           </button>
         ) : null}
       </div>

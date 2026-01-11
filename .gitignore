@@ -25,3 +25,7 @@ dist-ssr
 
 # Project archives
 archive/
+
+# Environment secrets
+.env
+.env.* 

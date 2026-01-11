@@ -3,5 +3,6 @@
   min-height: 320px;
   border: 1px solid var(--panel-border);
   border-radius: 16px;
-  background: white;
+  background: var(--frame-bg);
+  display: block;
 }

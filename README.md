@@ -61,3 +61,29 @@ Preview build:
 ```bash
 npm run preview
 ```
+
+## Smoke Tests
+See `SMOKE_TESTS.md`.
+
+## Release Checklist
+See `RELEASE_CHECKLIST.md`.
+
+## Known Limitations
+- No accounts or syncing.
+- No sharing or community library.
+- AI assistance is not part of MVP.
+
+## Changelog
+See `CHANGELOG.md`.
+
+## Versioning
+We follow SemVer (MAJOR.MINOR.PATCH).
+
+## Contributing
+See `CONTRIBUTING.md`.
+
+## License
+MIT. See `LICENSE`.
+
+## AI Phase
+See `AI_PHASE.md`, `AI_UI.md`, `AI_API.md`, and `AI_PROMPTS.md`.
